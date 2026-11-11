@@ -1,0 +1,36 @@
+# Fork only: Macroscope's check-run agents wait for a check named "Check". Upstream's lives in
+# ci.yml on Blacksmith runners, which this fork does not run, so this runs the fast checks for
+# the pull request's changed files on GitHub-hosted runners instead.
+name: Fork Check
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+          sparse-checkout: |
+            /*
+            !/.repos/
+            !/apps/mobile/modules/t3-terminal/Vendor/**/*.a
+          sparse-checkout-cone-mode: false
+
+      - name: Setup Vite+
+        uses: ./.github/actions/setup-ci-deps
+
+      - name: Check changed files
+        run: vp run check:changed ${{ github.event.pull_request.base.sha }}
